@@ -33,7 +33,7 @@ from transforms import get_transform
 task = Task.init(project_name='Trains Model Zoo',
                  task_name='Train SSD with torchvision')
 
-configuration_data = {'image_size':512, 'model_type': 'ssd', 'backbone': 'resnet50'}
+configuration_data = {'image_size': 512, 'model_type': 'ssd', 'backbone': 'resnet50'}
 configuration_data = task.connect_configuration(configuration_data)
 
 
@@ -73,7 +73,8 @@ class CocoMask(CocoDetection):
         return img, new_target
 
 
-def get_data_loaders(train_ann_file, test_ann_file, batch_size, test_size, image_size, use_mask):
+def get_data_loaders(train_ann_file, test_ann_file, batch_size, test_size, opt_size,
+                     image_size, use_mask, workers, pin_memory):
     # first, crate PyTorch dataset objects, for the train and validation data.
     dataset = CocoMask(
         root=Path.joinpath(Path(train_ann_file).parent.parent, train_ann_file.split('_')[1].split('.')[0]),
@@ -92,44 +93,17 @@ def get_data_loaders(train_ann_file, test_ann_file, batch_size, test_size, image
     dataset_val = torch.utils.data.Subset(dataset_test, indices_val[:test_size])
 
     indices_opt = torch.randperm(len(dataset)).tolist()
-    dataset_opt = torch.utils.data.Subset(dataset, indices_opt[:100])
+    dataset_opt = torch.utils.data.Subset(dataset, indices_opt[:opt_size])
 
     # set train and validation data-loaders
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0,
-                              collate_fn=safe_collate, pin_memory=True)
-    val_loader = DataLoader(dataset_val, batch_size=batch_size, shuffle=False, num_workers=0,
-                            collate_fn=safe_collate, pin_memory=True)
-    opt_loader = DataLoader(dataset_opt, batch_size=batch_size, shuffle=False, num_workers=0,
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers,
+                              collate_fn=safe_collate, pin_memory=pin_memory)
+    val_loader = DataLoader(dataset_val, batch_size=batch_size, shuffle=False, num_workers=workers,
+                            collate_fn=safe_collate, pin_memory=pin_memory)
+    opt_loader = DataLoader(dataset_opt, batch_size=batch_size, shuffle=False, num_workers=workers,
                             collate_fn=safe_collate, pin_memory=False)
 
     return train_loader, val_loader, opt_loader, labels_enumeration
-
-
-# def get_data_loaders(dataviews, batch_size, test_size, optimization_size, image_size, use_mask, num_workers, pin_memory):
-#     # first, crate PyTorch dataset objects, for the train and validation data.
-#     datasets = {x: AllegroDataset(dataview=dataviews[x],
-#                                   transforms_func=partial(get_augmentations, image_size=image_size),
-#                                   train=(x == 'train'),
-#                                   use_mask=use_mask)
-#                 for x in ['train', 'val']}
-#
-#     labels_enumeration = datasets['train'].dataview.get_labels()
-#
-#     indices_val = torch.randperm(len(datasets['val'])).tolist()
-#     dataset_val = torch.utils.data.Subset(datasets['val'], indices_val[:test_size])
-#
-#     indices_opt = torch.randperm(len(datasets['train'])).tolist()
-#     dataset_opt = torch.utils.data.Subset(datasets['train'], indices_opt[:optimization_size])
-#
-#     # set train and validation data-loaders
-#     train_loader = DataLoader(datasets['train'], batch_size=batch_size, shuffle=False, num_workers=num_workers,
-#                               collate_fn=safe_collate, pin_memory=pin_memory)
-#     val_loader = DataLoader(dataset_val, batch_size=batch_size, shuffle=False, num_workers=num_workers,
-#                             collate_fn=safe_collate, pin_memory=pin_memory)
-#     opt_loader = DataLoader(dataset_opt, batch_size=batch_size, shuffle=False, num_workers=num_workers,
-#                             collate_fn=safe_collate, pin_memory=pin_memory)
-#
-#     return train_loader, val_loader, opt_loader, labels_enumeration
 
 
 def run(task_args):
@@ -158,20 +132,15 @@ def run(task_args):
     # Define train and test datasets
     iou_types = get_iou_types(model)
     use_mask = True if "segm" in iou_types else False
-    # train_loader, val_loader, opt_loader, labels_enum = get_data_loaders(dataviews,
-    #                                                                      task_args.batch_size,
-    #                                                                      task_args.test_size,
-    #                                                                      task_args.optimize_priors_sample_size,
-    #                                                                      configuration_data.get('image_size'),
-    #                                                                      use_mask,
-    #                                                                      task_args.num_workers,
-    #                                                                      task_args.pin_memory)
     train_loader, val_loader, opt_loader, labels_enum = get_data_loaders(task_args.train_dataset_ann_file,
                                                              task_args.val_dataset_ann_file,
                                                              task_args.batch_size,
                                                              task_args.test_size,
+                                                             task_args.optimize_priors_sample_size,
                                                              configuration_data.get('image_size'),
-                                                             use_mask)
+                                                             use_mask,
+                                                             task_args.num_workers,
+                                                             task_args.pin_memory)
 
     val_dataset = list(chain.from_iterable(zip(*batch) for batch in iter(val_loader)))
     coco_api_val_dataset = convert_to_coco_api(val_dataset)
@@ -269,13 +238,11 @@ def run(task_args):
 
         if task_args.min_checkpoint_iterations > 0:
             engine.state.last_epoch_iteration = 0
-    
-    
+
     @trainer.on(Events.EPOCH_STARTED)
     def on_epoch_started(engine):
         model.train()
-    
-    
+
     @trainer.on(Events.ITERATION_COMPLETED)
     def on_iteration_completed(engine):
         images, targets, loss_dict_reduced = engine.state.output
@@ -294,8 +261,7 @@ def run(task_args):
                     writer.add_image("training/image_{}_mask".format(n),
                                      draw_mask(targets[n]), engine.state.iteration, dataformats='HW')
         images = targets = loss_dict_reduced = engine.state.output = None
-    
-    
+
     @trainer.on(Events.EPOCH_COMPLETED)
     def on_epoch_completed(engine):
         if engine.state.warmup_scheduler is not None and \
@@ -324,19 +290,17 @@ def run(task_args):
             utils.save_on_master(checkpoint, checkpoint_path)
             print('Checkpoint from epoch {} was saved at {}'.format(engine.state.epoch, checkpoint_path))
             evaluator.state = checkpoint = None
-    
-    
+
     @evaluator.on(Events.STARTED)
     def on_evaluation_started(engine):
         model.eval()
         engine.state.coco_evaluator = CocoEvaluator(coco_api_val_dataset, iou_types)
+        engine.state.label_enum = {key: val['name'] for key, val in labels_enum.items()}
         evaluation_started(engine)
-
 
     @evaluator.on(Events.ITERATION_COMPLETED)
     def on_eval_iteration_completed(engine):
         eval_iteration_completed(engine, writer, task_args, trainer.state.iteration)
-
 
     @evaluator.on(Events.COMPLETED)
     def on_evaluation_completed(engine):
@@ -360,7 +324,7 @@ if __name__ == "__main__":
                         help="Score threshold for debug images and frame level accuracy")
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs to train')
-    parser.add_argument('--num_workers', type=int, default=4,
+    parser.add_argument('--num_workers', type=int, default=2,
                         help='number of sub-processes for DataLoader to use for data loading')
     parser.add_argument('--pin_memory', type=bool, default=True,
                         help='If True, the dataloader will copy Tensors into CUDA before returning them.')

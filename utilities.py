@@ -101,7 +101,7 @@ class COCOResults(object):
         assert all(iou_type in allowed_types for iou_type in iou_types)
 
         self.iou_thresh = 0.5
-        self.labels_enum = {val: key for key, val in labels_enum.items()}
+        self.labels_enum = labels_enum
         results = OrderedDict()
         for iou_type in iou_types:
             results[iou_type] = OrderedDict(
@@ -141,6 +141,8 @@ class COCOResults(object):
         AP50 = {}
         iou_idx = np.where(iou_thresholds == self.iou_thresh)[0][0]
         for m in range(self.full_results[iou_type]['recall'].shape[1]):
+            if m+1 not in self.labels_enum.keys():
+                continue
             label_name = self.labels_enum[m+1] if self.labels_enum is not None else str(m+1)
             if (self.full_results[iou_type]['precision'][iou_idx, :, m, 0, -1] >= 0).all():
                 curr_precision = self.full_results[iou_type]['precision'][iou_idx, :, m, 0, -1].reshape(-1)

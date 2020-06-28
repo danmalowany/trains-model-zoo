@@ -7,9 +7,7 @@ def evaluation_started(engine):
     engine.state.eval_size = 0
     engine.state.running_corrects = 0
     engine.state.failures = []
-    engine.state.confusion_matrix = torch.zeros(size=(2,2))
-    engine.state.label_enum = {val: key for key, val
-                               in Task.current_task().get_dataviews()['val'].get_labels().items()}  # TODO: fix
+    engine.state.confusion_matrix = torch.zeros(size=(2, 2))
 
 
 def eval_iteration_completed(engine, writer, task_args, report_iter=None):
@@ -70,7 +68,7 @@ def evaluation_completed(engine, writer, task_args, report_iter=None):
     writer.add_scalar('Frame Performance/accuracy',
                       (true_positive + true_negative) / (total_positive + total_negatives), curr_iteration)
 
-    results_summary = COCOResults(engine.state.coco_evaluator, Task.current_task().get_dataviews()['val'].get_labels())
+    results_summary = COCOResults(engine.state.coco_evaluator, engine.state.label_enum)
     full_results = results_summary.get_results()
     for iou_type in engine.state.coco_evaluator.iou_types:
         for key, val in full_results[iou_type]['Average Precision'].items():
