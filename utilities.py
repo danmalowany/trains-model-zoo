@@ -27,12 +27,13 @@ def draw_boxes(im, boxes, labels, color=(150, 0, 0)):
     return im
 
 
-def draw_debug_images(images, targets, predictions=None, score_thr=0.4):
+def draw_debug_images(images, targets, predictions=None, score_thr=0.4, labels_enum=None):
     debug_images = []
     for n, (image, target) in enumerate(zip(images, targets)):
         img = draw_boxes(np.array(F.to_pil_image(image.cpu())),
                          [box.cpu().numpy() for box in target['boxes']],
-                         [label.item() for label in target['labels']])
+                         [label.item() if (labels_enum is None or label is None) else labels_enum[label.item()]
+                          for label in target['labels']])
         if predictions and predictions[target['image_id'].item()]:
             img = draw_boxes(img,
                              [box.cpu().numpy() for box, score in

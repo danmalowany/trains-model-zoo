@@ -20,13 +20,15 @@ def eval_iteration_completed(engine, writer, task_args, report_iter=None):
         engine.state.confusion_matrix[int(len(target['labels']) > 0), int(len(pred) > 0)] += 1
         if len(engine.state.failures) < 20:
             if not correct:
-                debug_images = draw_debug_images([image], [target], results, task_args.test_score_thr)
+                debug_images = draw_debug_images([image], [target], results,
+                                                 task_args.test_score_thr, engine.state.label_enum)
                 engine.state.failures.append(debug_images[0])
 
     if engine.state.iteration % task_args.log_interval == 0:
         print("Evaluation: Iteration: {}".format(engine.state.iteration))
     if engine.state.iteration % task_args.debug_images_interval == 0:
-        for n, debug_image in enumerate(draw_debug_images(images, targets, results, task_args.test_score_thr)):
+        for n, debug_image in enumerate(draw_debug_images(images, targets, results,
+                                                          task_args.test_score_thr, engine.state.label_enum)):
             writer.add_image("evaluation/image_{}_{}".format(engine.state.iteration, n),
                              debug_image, curr_iteration, dataformats='HWC')
             if 'masks' in targets[n]:

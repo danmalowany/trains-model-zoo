@@ -48,14 +48,12 @@ class CocoMask(CocoDetection):
         img_id = self.ids[index]
         ann_ids = coco.getAnnIds(imgIds=img_id)
         target = coco.loadAnns(ann_ids)
-        if len(ann_ids) == 0:
-            return None
 
         path = coco.loadImgs(img_id)[0]['file_name']
         img = Image.open(os.path.join(self.root, path)).convert('RGB')
 
         # From boxes [x, y, w, h] to [x1, y1, x2, y2]
-        new_target = {"image_id": torch.as_tensor(target[0]['image_id'], dtype=torch.int64),
+        new_target = {"image_id": torch.as_tensor(img_id, dtype=torch.int64),
                       "area": torch.as_tensor([obj['area'] for obj in target], dtype=torch.float32),
                       "iscrowd": torch.as_tensor([obj['iscrowd'] for obj in target], dtype=torch.int64),
                       "boxes": torch.as_tensor([obj['bbox'][:2] + list(map(add, obj['bbox'][:2], obj['bbox'][2:]))
@@ -199,6 +197,7 @@ def run(task_args):
     
     @trainer.on(Events.STARTED)
     def on_training_started(engine):
+        engine.state.label_enum = {key: val['name'] for key, val in labels_enum.items()}
         # construct an optimizer
         params = [p for p in model.parameters() if p.requires_grad]
         engine.state.optimizer = torch.optim.SGD(params,
@@ -255,7 +254,8 @@ def run(task_args):
             writer.add_scalar("learning rate/lr", engine.state.optimizer.param_groups[0]['lr'], engine.state.iteration)
 
         if engine.state.iteration % task_args.debug_images_interval == 0:
-            for n, debug_image in enumerate(draw_debug_images(images, targets, score_thr=task_args.test_score_thr)):
+            for n, debug_image in enumerate(draw_debug_images(images, targets, score_thr=task_args.test_score_thr,
+                                                              labels_enum=engine.state.label_enum)):
                 writer.add_image("training/image_{}".format(n), debug_image, engine.state.iteration, dataformats='HWC')
                 if 'masks' in targets[n]:
                     writer.add_image("training/image_{}_mask".format(n),
@@ -312,13 +312,13 @@ def run(task_args):
     
 if __name__ == "__main__":
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--min_checkpoint_iterations', type=int, default=1000,
+    parser.add_argument('--min_checkpoint_iterations', type=int, default=10000,
                         help='Skipping evaluation and checkpoint if epoch ends before "min_checkpoint_iterations"')
     parser.add_argument('--warmup_iterations', type=int, default=5000,
                         help='Number of iteration for warmup period (until reaching base learning rate)')
-    parser.add_argument('--batch_size', type=int, default=2,
+    parser.add_argument('--batch_size', type=int, default=4,
                         help='input batch size for training and validation')
-    parser.add_argument('--test_size', type=int, default=1000,
+    parser.add_argument('--test_size', type=int, default=2500,
                         help='number of frames from the test dataset to use for validation')
     parser.add_argument("--test_score_thr", type=float, default=0.4,
                         help="Score threshold for debug images and frame level accuracy")
