@@ -36,10 +36,12 @@ def draw_debug_images(images, targets, predictions=None, score_thr=0.4, labels_e
                           for label in target['labels']])
         if predictions and predictions[target['image_id'].item()]:
             img = draw_boxes(img,
-                             [box.cpu().numpy() for box, score in
+                             [box.cpu().numpy()
+                              for box, score in
                               zip(predictions[target['image_id'].item()]['boxes'],
                                   predictions[target['image_id'].item()]['scores']) if score >= score_thr],
-                             [label.item() for label, score in
+                             [label.item() if (labels_enum is None or label is None) else labels_enum[label.item()]
+                              for label, score in
                               zip(predictions[target['image_id'].item()]['labels'],
                                   predictions[target['image_id'].item()]['scores']) if score >= score_thr],
                              color=(0, 150, 0))

@@ -312,13 +312,13 @@ def run(task_args):
     
 if __name__ == "__main__":
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--min_checkpoint_iterations', type=int, default=10000,
+    parser.add_argument('--min_checkpoint_iterations', type=int, default=5000,
                         help='Skipping evaluation and checkpoint if epoch ends before "min_checkpoint_iterations"')
     parser.add_argument('--warmup_iterations', type=int, default=5000,
                         help='Number of iteration for warmup period (until reaching base learning rate)')
     parser.add_argument('--batch_size', type=int, default=4,
                         help='input batch size for training and validation')
-    parser.add_argument('--test_size', type=int, default=2500,
+    parser.add_argument('--test_size', type=int, default=2000,
                         help='number of frames from the test dataset to use for validation')
     parser.add_argument("--test_score_thr", type=float, default=0.4,
                         help="Score threshold for debug images and frame level accuracy")
@@ -330,7 +330,7 @@ if __name__ == "__main__":
                         help='If True, the dataloader will copy Tensors into CUDA before returning them.')
     parser.add_argument('--log_interval', type=int, default=200,
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--debug_images_interval', type=int, default=600,
+    parser.add_argument('--debug_images_interval', type=int, default=400,
                         help='how many batches to wait before logging debug images')
     parser.add_argument('--train_dataset_ann_file', type=str,
                         default='/home/sam/Datasets/COCO2017/annotations/instances_val2017.json',
