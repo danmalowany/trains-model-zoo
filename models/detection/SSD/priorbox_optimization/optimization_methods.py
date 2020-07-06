@@ -47,7 +47,7 @@ def global_optimization(gt_bbox_df, pvars, fmap_sizes, options, target_image_siz
     all_centers['cost'] = area_cost(all_centers[['width', 'height']], fmap_sizes)
     all_centers['score'] = all_centers['weight'] * ( 1 /all_centers['cost'])
 
-    from SSD.box_coder import box_iou
+    from models.detection.SSD.box_coder import box_iou
     import torch
     def iou_matching(centers, pixel_fov):
         def wh_to_boxes(df):

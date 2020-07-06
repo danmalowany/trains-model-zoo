@@ -5,17 +5,23 @@ import attr
 import cv2
 import numpy as np
 from torchvision.transforms import functional as F
+from trains import Task
 from trains.utilities.plotly_reporter import SeriesInfo
 
 from torchvision_references import utils
 from torchvision_references.coco_eval import CocoEvaluator
 
-from datetime import datetime
-
 
 def safe_collate(batch):
     batch = list(filter(lambda x: x is not None, batch))
     return utils.collate_fn(batch)
+
+
+def update_task_configuration(dict):
+    configuration_data = Task.current_task().get_model_config_dict()
+    for key, val in dict.items():
+        configuration_data[key] = val
+    Task.current_task().set_model_config(config_dict=configuration_data)
 
 
 def draw_boxes(im, boxes, labels, color=(150, 0, 0)):

@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import torchvision
 from collections import OrderedDict
 
-from SSD.box_coder import SSDBoxCoder
+from models.detection.SSD.box_coder import SSDBoxCoder
 
 # Aspect ration between current layer and original image size.
 # I.e, how many pixel steps on the original image are equivalent to a single pixel step on the feature map.

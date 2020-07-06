@@ -5,8 +5,8 @@ import pandas as pd
 import torch
 from trains import Task
 
-from SSD.priorbox_optimization import PriorOptimizationInput, ImageSizeTuple
-from SSD.priorbox_optimization.bbox_clustering import get_box_pairwise_iou
+from models.detection.SSD.priorbox_optimization import PriorOptimizationInput, ImageSizeTuple
+from models.detection.SSD.priorbox_optimization.bbox_clustering import get_box_pairwise_iou
 
 
 def collect_ground_truth_stats(ground_truth_loader):

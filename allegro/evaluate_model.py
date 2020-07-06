@@ -10,7 +10,7 @@ from torchvision import models
 
 from engines import create_evaluator
 from events import evaluation_started, eval_iteration_completed, evaluation_completed
-from utils import AllegroDataset, safe_collate, get_transforms
+from allegro.utils import AllegroDataset, safe_collate, get_transforms
 
 from allegroai import DataView, Task, InputModel
 task = Task.init(project_name='NSFW Image Classification', task_name='Evaluate with torchvision',

@@ -6,29 +6,28 @@ from operator import add
 
 import numpy as np
 import torch
-from trains import Task
 from PIL import Image
 from ignite.engine import Events
+from pathlib2 import Path
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from trains.storage.helper import StorageHelper
 from torchvision.datasets.coco import CocoDetection
-from pathlib2 import Path
+from trains import Task
+from trains.storage.helper import StorageHelper
 
-from SSD.priorbox_optimization import PriorOptimizationOptions
-from SSD.priorbox_optimization.optimize_priors import optimize_priors
 from engines import create_trainer, create_evaluator
 from events import evaluation_completed, eval_iteration_completed, evaluation_started
-from models import get_model, get_iou_types
-from priors_optimization_utils import collect_ground_truth_stats, get_optimization_input, \
+from models.utilities import get_model, get_iou_types
+from models.detection.SSD.priorbox_optimization import PriorOptimizationOptions
+from models.detection.SSD.priorbox_optimization.optimize_priors import optimize_priors
+from models.detection.SSD.priorbox_optimization.priors_optimization_utils import collect_ground_truth_stats, \
+    get_optimization_input, \
     convert_optimization_result_to_priors
 from torchvision_references import utils
 from torchvision_references.coco_eval import CocoEvaluator
 from torchvision_references.coco_utils import convert_to_coco_api
-from transforms import get_augmentations
-from utilities import draw_debug_images, draw_mask, safe_collate
 from transforms import get_transform
-
+from utilities import draw_debug_images, draw_mask, safe_collate
 
 task = Task.init(project_name='Trains Model Zoo',
                  task_name='Train SSD with torchvision')
@@ -174,7 +173,7 @@ def run(task_args):
 
     if 'priors_output' in configuration_data:
         if opt_result is None:
-            from SSD.priorbox_optimization import PriorOptimizationOutput, ImageSizeTuple
+            from models.detection.SSD import PriorOptimizationOutput, ImageSizeTuple
             import pandas as pd
             print('Loading priors from {}'.format(configuration_data['priors_output']))
             storage_helper = StorageHelper.get(task.output_uri)

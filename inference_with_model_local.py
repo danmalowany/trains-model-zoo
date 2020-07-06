@@ -1,24 +1,24 @@
-import os
 import glob
-import numpy as np
-
-import torch
-from torch.utils.tensorboard import SummaryWriter
-
+import os
 from argparse import ArgumentParser
-from pathlib2 import Path
 
-from utilities import get_iou_types, draw_boxes, get_model_instance_segmentation, CocoLikeAnnotations, get_backbone
-from torchvision_references import utils
-from torchvision.transforms import functional as F
-
+import numpy as np
+import torch
 from PIL import Image
-from transforms import get_transform
-
-from SSD.ssd_model import SSD
-from SSD.multibox_loss import SSDLoss
-
+from pathlib2 import Path
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.transforms import functional as F
 from trains import Task
+
+from models.detection.SSD.backbones import get_backbone
+from models.detection.SSD.multibox_loss import SSDLoss
+from models.detection.SSD.ssd_model import SSD
+from models.segmentation.MaskRCNN.mask_rcnn_model import get_model_instance_segmentation
+from models.utilities import get_iou_types
+from torchvision_references import utils
+from transforms import get_transform
+from utilities import draw_boxes, CocoLikeAnnotations
+
 task = Task.init(project_name='Object Detection with TRAINS, Ignite and TensorBoard',
                  task_name='Inference with trained SSD model')
 

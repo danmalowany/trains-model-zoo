@@ -1,105 +1,8 @@
 import torch
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-from torchvision.models.resnet import resnet50, resnet101, resnet152
-from torchvision.models.vgg import vgg16
-from SSD.ssd_model import SSD
-from SSD.multibox_loss import SSDLoss
-from typing import List, Dict, Optional
-from torch.tensor import Tensor
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.roi_heads import RoIHeads
 from torchvision.models.detection.rpn import RegionProposalNetwork
 from torchvision.ops import boxes as box_ops
-from trains import Task
-
-
-def get_model(model_type, backbone_type, num_classes, dropout=0, transfer_learning=True, configuration_data=None):
-    if model_type == 'maskrcnn':
-        mask_predictor_hidden_layer = configuration_data.get('mask_predictor_hidden_layer', 256)
-        model = get_model_instance_segmentation(num_classes, mask_predictor_hidden_layer)
-        last_layer_to_freeze = configuration_data.get('last_layer_to_freeze', 'layer3')
-        update_task_configuration({'mask_predictor_hidden_layer': mask_predictor_hidden_layer,
-                                   'last_layer_to_freeze': last_layer_to_freeze})
-        if transfer_learning:
-            model.backbone.body = freeze_layers(model=model.backbone.body, last_layer_to_freeze=last_layer_to_freeze)
-    elif model_type == 'fasterrcnn':
-        model = get_fasterrcnn(num_classes)
-        last_layer_to_freeze = configuration_data.get('last_layer_to_freeze', 'layer3')
-        update_task_configuration({'last_layer_to_freeze': last_layer_to_freeze})
-        if transfer_learning:
-            model.backbone.body = freeze_layers(model=model.backbone.body, last_layer_to_freeze=last_layer_to_freeze)
-    elif model_type == 'ssd':
-        backbone = get_backbone(backbone_type)
-        model = SSD(backbone=backbone, num_classes=num_classes, dropout=dropout,
-                    loss_function=SSDLoss(num_classes))
-        model.change_input_size(
-            torch.rand(size=(1, 3, configuration_data.get('image_size'), configuration_data.get('image_size'))) * 255)
-        model.box_coder.enforce_matching = configuration_data.get('enforce_matching', True)
-        last_layer_to_freeze = configuration_data.get('last_layer_to_freeze', 'layer2')
-        # last_layer_to_freeze = configuration_data.get('last_layer_to_freeze', 'till_conv4_3')
-        update_task_configuration({'enforce_matching': model.box_coder.enforce_matching,
-                                   'last_layer_to_freeze': last_layer_to_freeze})
-        if transfer_learning:
-            if last_layer_to_freeze in [child[0] for child in model.extractor.till_conv4_3.named_children()]:
-                model.extractor.till_conv4_3 = freeze_layers(model=model.extractor.till_conv4_3,
-                                                             last_layer_to_freeze=last_layer_to_freeze)
-            elif last_layer_to_freeze in [child[0] for child in model.extractor.till_conv5_3.named_children()]:
-                model.extractor.till_conv5_3 = freeze_layers(model=model.extractor.till_conv5_3,
-                                                             last_layer_to_freeze=last_layer_to_freeze)
-            else:
-                raise ValueError('layer "{}" was not found'.format(last_layer_to_freeze))
-            # model.extractor = freeze_layers(model=model.extractor, last_layer_to_freeze=last_layer_to_freeze)
-    else:
-        raise ValueError('Only "maskrcnn" and "ssd" are supported as model type')
-    return model
-
-
-def update_task_configuration(dict):
-    configuration_data = Task.current_task().get_model_config_dict()
-    for key, val in dict.items():
-        configuration_data[key] = val
-    Task.current_task().set_model_config(config_dict=configuration_data)
-
-
-def get_backbone(backbone_name):
-    if backbone_name == 'vgg16':
-        return vgg16(pretrained=True)
-    elif backbone_name == 'resnet50':
-        return resnet50(pretrained=True)
-    elif backbone_name == 'resnet101':
-        return resnet101(pretrained=True)
-    elif backbone_name == 'resnet152':
-        return resnet152(pretrained=True)
-    else:
-        raise ValueError('Only "vgg16", "resnet50", "resnet101" and "resnet152" are supported backbone names')
-
-
-def get_model_instance_segmentation(num_classes, hidden_layer):
-    # load an instance segmentation model pre-trained on COCO
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
-
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-    # now get the number of input features for the mask classifier
-    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-
-    # and replace the mask predictor with a new one
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
-    return model
-
-
-def freeze_layers(model, last_layer_to_freeze):
-    for child in model.named_children():
-        print('freezing layer {}'.format(child[0]))
-        for param in child[1].parameters():
-            param.requires_grad = False
-        if child[0] == last_layer_to_freeze:
-            break
-    return model
 
 
 def get_fasterrcnn(num_classes):
@@ -216,15 +119,3 @@ def get_fasterrcnn(num_classes):
     RoIHeads.select_training_samples = RoIHeadsFixed.select_training_samples
     model = fasterrcnn_resnet50_fpn(pretrained_backbone=True, num_classes=num_classes)
     return model
-
-
-def get_iou_types(model):
-    model_without_ddp = model
-    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-        model_without_ddp = model.module
-    iou_types = ["bbox"]
-    if isinstance(model_without_ddp, torchvision.models.detection.MaskRCNN):
-        iou_types.append("segm")
-    if isinstance(model_without_ddp, torchvision.models.detection.KeypointRCNN):
-        iou_types.append("keypoints")
-    return iou_types
