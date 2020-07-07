@@ -8,10 +8,10 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from engines import create_annotator
-from datasets import AllegroDataset
+from allegro.datasets import AllegroDataset
 from transforms import get_augmentations
 from models import get_model
-from utilities import draw_debug_images, safe_collate
+from utilities import safe_collate
 
 from allegroai import DataView, Task, InputModel
 task = Task.init(project_name='Gun Detection', task_name='Inference with model',

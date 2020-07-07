@@ -2,72 +2,35 @@ import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from functools import partial
 from itertools import chain
-from operator import add
 
 import numpy as np
 import torch
-from PIL import Image
 from ignite.engine import Events
 from pathlib2 import Path
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.datasets.coco import CocoDetection
 from trains import Task
 from trains.storage.helper import StorageHelper
 
+from datasets import CocoMask
 from engines import create_trainer, create_evaluator
 from events import evaluation_completed, eval_iteration_completed, evaluation_started
-from models.utilities import get_model, get_iou_types
 from models.detection.SSD.priorbox_optimization import PriorOptimizationOptions
 from models.detection.SSD.priorbox_optimization.optimize_priors import optimize_priors
 from models.detection.SSD.priorbox_optimization.priors_optimization_utils import collect_ground_truth_stats, \
-    get_optimization_input, \
-    convert_optimization_result_to_priors
+    get_optimization_input, convert_optimization_result_to_priors
+from models.utilities import get_model, get_iou_types
 from torchvision_references import utils
 from torchvision_references.coco_eval import CocoEvaluator
 from torchvision_references.coco_utils import convert_to_coco_api
-from transforms import get_transform
+from transforms import get_augmentations
 from utilities import draw_debug_images, draw_mask, safe_collate
 
 task = Task.init(project_name='Trains Model Zoo',
-                 task_name='Train SSD with torchvision')
+                 task_name='Train with PyTorch ecosystem')
 
 configuration_data = {'image_size': 512, 'model_type': 'ssd', 'backbone': 'resnet50'}
 configuration_data = task.connect_configuration(configuration_data)
-
-
-class CocoMask(CocoDetection):
-    def __init__(self, root, annFile, transform=None, target_transform=None, transforms=None, use_mask=True):
-        super(CocoMask, self).__init__(root, annFile, transforms, target_transform, transform)
-        self.transforms = transforms
-        self.use_mask = use_mask
-
-    def __getitem__(self, index):
-        coco = self.coco
-        img_id = self.ids[index]
-        ann_ids = coco.getAnnIds(imgIds=img_id)
-        target = coco.loadAnns(ann_ids)
-
-        path = coco.loadImgs(img_id)[0]['file_name']
-        img = Image.open(os.path.join(self.root, path)).convert('RGB')
-
-        # From boxes [x, y, w, h] to [x1, y1, x2, y2]
-        new_target = {"image_id": torch.as_tensor(img_id, dtype=torch.int64),
-                      "area": torch.as_tensor([obj['area'] for obj in target], dtype=torch.float32),
-                      "iscrowd": torch.as_tensor([obj['iscrowd'] for obj in target], dtype=torch.int64),
-                      "boxes": torch.as_tensor([obj['bbox'][:2] + list(map(add, obj['bbox'][:2], obj['bbox'][2:]))
-                                                for obj in target], dtype=torch.float32),
-                      "labels": torch.as_tensor([obj['category_id'] for obj in target], dtype=torch.int64)}
-        if self.use_mask:
-            mask = [coco.annToMask(ann) for ann in target]
-            if len(mask) > 1:
-                mask = np.stack(tuple(mask), axis=0)
-            new_target["masks"] = torch.as_tensor(mask, dtype=torch.uint8)
-
-        if self.transforms is not None:
-            img, new_target = self.transforms(img, new_target)
-
-        return img, new_target
 
 
 def get_data_loaders(train_ann_file, test_ann_file, batch_size, test_size, opt_size,
@@ -76,12 +39,12 @@ def get_data_loaders(train_ann_file, test_ann_file, batch_size, test_size, opt_s
     dataset = CocoMask(
         root=Path.joinpath(Path(train_ann_file).parent.parent, train_ann_file.split('_')[1].split('.')[0]),
         annFile=train_ann_file,
-        transforms=get_transform(train=True, image_size=image_size),
+        transforms=get_augmentations(train=True, image_size=image_size),
         use_mask=use_mask)
     dataset_test = CocoMask(
         root=Path.joinpath(Path(test_ann_file).parent.parent, test_ann_file.split('_')[1].split('.')[0]),
         annFile=test_ann_file,
-        transforms=get_transform(train=False, image_size=image_size),
+        transforms=get_augmentations(train=False, image_size=image_size),
         use_mask=use_mask)
 
     labels_enumeration = dataset.coco.cats
