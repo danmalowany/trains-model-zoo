@@ -278,7 +278,7 @@ if __name__ == "__main__":
                         help='Skipping evaluation and checkpoint if epoch ends before "min_checkpoint_iterations"')
     parser.add_argument('--warmup_iterations', type=int, default=5000,
                         help='Number of iteration for warmup period (until reaching base learning rate)')
-    parser.add_argument('--batch_size', type=int, default=2,
+    parser.add_argument('--batch_size', type=int, default=4,
                         help='input batch size for training and validation')
     parser.add_argument('--test_size', type=int, default=2000,
                         help='number of frames from the test dataset to use for validation')
