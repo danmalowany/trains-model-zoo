@@ -233,8 +233,9 @@ def run(task_args):
         if type(engine.state.scheduler) == torch.optim.lr_scheduler.StepLR and engine.state.warmup_scheduler is None:
             engine.state.scheduler.step()
 
-        if task_args.min_checkpoint_iterations > 0 and \
-                (engine.state.iteration - engine.state.last_epoch_iteration) > task_args.min_checkpoint_iterations:
+        if (task_args.min_checkpoint_iterations == 0) or \
+                (engine.state.iteration - engine.state.last_epoch_iteration) > task_args.min_checkpoint_iterations or \
+                (engine.state.epoch == task_args.epochs):
             engine.state.last_epoch_iteration = engine.state.iteration
 
             print('Starting checkpoint evaluation')
