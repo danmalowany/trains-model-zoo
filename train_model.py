@@ -238,9 +238,6 @@ def run(task_args):
                 (engine.state.epoch == task_args.epochs):
             engine.state.last_epoch_iteration = engine.state.iteration
 
-            print('Starting checkpoint evaluation')
-            evaluator.run(val_loader)
-
             checkpoint_path = os.path.join(task_args.output_dir, 'model_epoch_{}.pth'.format(engine.state.epoch))
             print('Saving checkpoint')
             checkpoint = {
@@ -252,6 +249,10 @@ def run(task_args):
                 'labels_enumeration': labels_enum}
             utils.save_on_master(checkpoint, checkpoint_path)
             print('Checkpoint from epoch {} was saved at {}'.format(engine.state.epoch, checkpoint_path))
+
+            print('Starting checkpoint evaluation')
+            evaluator.run(val_loader)
+
             evaluator.state = checkpoint = None
 
     @evaluator.on(Events.STARTED)
