@@ -1,5 +1,6 @@
 import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from dataclasses import dataclass, field
 
 import torch
 from ignite.engine import Events
@@ -17,40 +18,57 @@ from torchvision_references.coco_utils import convert_to_coco_api
 from transforms import get_augmentations
 from utilities import safe_collate
 
-task = Task.init(project_name='Trains Model Zoo', task_name='Evaluate with PyTorch ecosystem')
+
+@dataclass
+class EvalModel:
+    """Class for keeping model and related information."""
+    model: torch.nn.Module
+    labels_enumeration: dict = field(default_factory=dict)
+    model_configuration: dict = field(default_factory=dict)
+    reports_prefix: str = ''
 
 
-def run(task_args):
+def run(task_args, external_model: EvalModel = None):
+    if external_model is None:
+        task = Task.init(project_name='Trains Model Zoo', task_name='Evaluate with PyTorch ecosystem')
+
+        # Load a pretrained model and reset final fully connected layer.
+        input_model = InputModel.import_model(weights_url='file:///tmp/checkpoints/model_epoch_20.pth')
+        input_model.connect(task)
+        input_checkpoint_path = input_model.get_weights()
+        print('Loading model...')
+        input_checkpoint = torch.load(input_checkpoint_path)
+
+        model_configuration_data = input_checkpoint['configuration']
+        labels_enumeration = input_checkpoint['labels_enumeration']
+
+        label_enum = {val['name']: key for key, val in labels_enumeration.items()}
+        num_classes = max([val for key, val in label_enum.items()]) + 1
+
+        # Load a pretrained model and reset final fully connected layer.
+        model = get_model(model_type=model_configuration_data.get('model_type'),
+                          backbone_type=model_configuration_data.get('backbone'),
+                          num_classes=num_classes,
+                          transfer_learning=False,
+                          configuration_data=model_configuration_data)
+        model.load_state_dict(input_checkpoint['model'])
+
+        reports_prefix = ''
+    else:
+        model = external_model.model
+        labels_enumeration = external_model.labels_enumeration
+        model_configuration_data = external_model.model_configuration
+        reports_prefix = external_model.reports_prefix
+
     # Set the training device to GPU if available - if not set it to CPU
     device = torch.cuda.current_device() if torch.cuda.is_available() else torch.device('cpu')
     torch.backends.cudnn.benchmark = True if torch.cuda.is_available() else False  # optimization for fixed input size
-
-    # Load a pretrained model and reset final fully connected layer.
-    input_model = InputModel.import_model(weights_url='file:///tmp/checkpoints/model_epoch_15.pth')
-    input_model.connect(task)
-    input_checkpoint_path = input_model.get_weights()
-    print('Loading model...')
-    input_checkpoint = torch.load(input_checkpoint_path, map_location=torch.device(device))
-    model_configuration_data = input_checkpoint['configuration']
-    labels_enumeration = input_checkpoint['labels_enumeration']
-
-    label_enum = {val['name']: key for key, val in labels_enumeration.items()}
-    num_classes = max([val for key, val in label_enum.items()]) + 1
-
-    # Load a pretrained model and reset final fully connected layer.
-    model = get_model(model_type=model_configuration_data.get('model_type'),
-                      backbone_type=model_configuration_data.get('backbone'),
-                      num_classes=num_classes,
-                      transfer_learning=False,
-                      configuration_data=model_configuration_data)
-    model.load_state_dict(input_checkpoint['model'])
 
     # if there is more than one GPU, parallelize the model
     if torch.cuda.device_count() > 1:
         print("{} GPUs were detected - we will use all of them".format(torch.cuda.device_count()))
         model = torch.nn.DataParallel(model)
 
-    # copy the model to each device
     model.to(device)
 
     # Define test dataset
@@ -81,11 +99,11 @@ def run(task_args):
 
     @evaluator.on(Events.ITERATION_COMPLETED)
     def on_eval_iteration_completed(engine):
-        eval_iteration_completed(engine, writer, task_args)
+        eval_iteration_completed(engine, writer, task_args, prefix=reports_prefix)
 
     @evaluator.on(Events.COMPLETED)
     def on_evaluation_completed(engine):
-        evaluation_completed(engine, writer, task_args)
+        evaluation_completed(engine, writer, task_args, prefix=reports_prefix)
 
     evaluator.run(val_loader)
     writer.close()
