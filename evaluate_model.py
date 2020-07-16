@@ -53,7 +53,7 @@ def run(task_args, external_model: EvalModel = None):
                           configuration_data=model_configuration_data)
         model.load_state_dict(input_checkpoint['model'])
 
-        reports_prefix = ''
+        reports_prefix = None
     else:
         model = external_model.model
         labels_enumeration = external_model.labels_enumeration
@@ -93,6 +93,7 @@ def run(task_args, external_model: EvalModel = None):
     @evaluator.on(Events.STARTED)
     def on_evaluation_started(engine):
         model.eval()
+        engine.state.test_score_thr = task_args.test_score_thr
         engine.state.coco_evaluator = CocoEvaluator(coco_api_val_dataset, iou_types)
         engine.state.label_enum = {key: val['name'] for key, val in labels_enumeration.items()}
         evaluation_started(engine)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
                         help='how many batches to wait before logging debug images')
     parser.add_argument("--log_dir", type=str, default="/tmp/tensorboard_logs",
                         help="log directory for Tensorboard log output")
-    parser.add_argument("--test_score_thr", type=float, default=0.4,
+    parser.add_argument("--test_score_thr", nargs='*', type=float, default=[0.3, 0.5, 0.7],
                         help="Score threshold for evaluation")
     parser.add_argument('--val_dataset_ann_file', type=str,
                         default='/home/sam/Datasets/COCO2017/annotations/instances_val2017.json',

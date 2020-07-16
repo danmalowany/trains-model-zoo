@@ -64,13 +64,16 @@ def create_evaluator(model, device):
         engine.state.coco_evaluator.update(res)
 
         # Frame level statistics
-        task_params = Task.current_task().data.execution.parameters
         target_labels = [target['labels'].cpu() for target in targets]
-        pred_labels = [val['labels'][val['scores'] > float(task_params['test_score_thr'])].cpu()
-                       if len(val)>0 else torch.tensor([], dtype=torch.int64) for key, val in res.items()]
-        iter_corrects = [torch.all(torch.eq(target.unique(), pred.unique())).item()
-                              if target.unique().size() == pred.unique().size() else False
-                              for target, pred in zip(target_labels, pred_labels)]
+
+        pred_labels = []
+        iter_corrects = []
+        for test_score_thr in engine.state.test_score_thr:
+            pred_labels.append([val['labels'][val['scores'] > test_score_thr].cpu()
+                           if len(val) > 0 else torch.tensor([], dtype=torch.int64) for key, val in res.items()])
+            iter_corrects.append([torch.all(torch.eq(target.unique(), pred.unique())).item()
+                             if target.unique().size() == pred.unique().size() else False
+                             for target, pred in zip(target_labels, pred_labels[-1])])
 
         images_model = outputs = None
 

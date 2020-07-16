@@ -284,8 +284,8 @@ if __name__ == "__main__":
                         help='input batch size for training and validation')
     parser.add_argument('--test_size', type=int, default=2000,
                         help='number of frames from the test dataset to use for validation')
-    parser.add_argument("--test_score_thr", type=float, default=0.4,
-                        help="Score threshold for debug images and frame level accuracy")
+    parser.add_argument("--test_score_thr", nargs='*', type=float, default=[0.3, 0.5, 0.7],
+                        help="Score threshold for evaluation")
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs to train')
     parser.add_argument('--num_workers', type=int, default=2,
