@@ -14,6 +14,8 @@ class CocoMask(CocoDetection):
         super(CocoMask, self).__init__(root, annFile, transforms, target_transform, transform)
         self.transforms = transforms
         self.use_mask = use_mask
+        # TODO: avoid memory leak, use numpy arrays and avoid using self.coco, which uses lists
+        # (https://github.com/pytorch/pytorch/issues/13246#issuecomment-617140519)
 
     def __getitem__(self, index):
         coco = self.coco

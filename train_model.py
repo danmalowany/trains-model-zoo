@@ -258,6 +258,7 @@ def run(task_args):
     @evaluator.on(Events.STARTED)
     def on_evaluation_started(engine):
         model.eval()
+        engine.state.test_score_thr = task_args.test_score_thr
         engine.state.coco_evaluator = CocoEvaluator(coco_api_val_dataset, iou_types)
         engine.state.label_enum = {key: val['name'] for key, val in labels_enum.items()}
         evaluation_started(engine)
@@ -286,7 +287,7 @@ if __name__ == "__main__":
                         help='number of frames from the test dataset to use for validation')
     parser.add_argument("--test_score_thr", nargs='*', type=float, default=[0.3, 0.5, 0.7],
                         help="Score threshold for evaluation")
-    parser.add_argument('--epochs', type=int, default=20,
+    parser.add_argument('--epochs', type=int, default=10,
                         help='number of epochs to train')
     parser.add_argument('--num_workers', type=int, default=2,
                         help='number of sub-processes for DataLoader to use for data loading')
@@ -297,7 +298,7 @@ if __name__ == "__main__":
     parser.add_argument('--debug_images_interval', type=int, default=400,
                         help='how many batches to wait before logging debug images')
     parser.add_argument('--train_dataset_ann_file', type=str,
-                        default='/home/sam/Datasets/COCO2017/annotations/instances_val2017.json',
+                        default='/home/sam/Datasets/COCO2017/annotations/instances_train2017.json',
                         help='annotation file of train dataset')
     parser.add_argument('--val_dataset_ann_file', type=str,
                         default='/home/sam/Datasets/COCO2017/annotations/instances_val2017.json',
