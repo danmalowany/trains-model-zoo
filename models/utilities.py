@@ -7,6 +7,7 @@ from models.detection.SSD.backbones import get_backbone
 from models.detection.SSD.multibox_loss import SSDLoss
 from models.detection.SSD.ssd_model import SSD
 from models.segmentation.MaskRCNN.mask_rcnn_model import get_model_instance_segmentation
+from models.classification.classification_model import get_classifier
 
 
 def get_iou_types(model):
@@ -57,6 +58,11 @@ def get_model(model_type, backbone_type, num_classes, dropout=0, transfer_learni
             else:
                 raise ValueError('layer "{}" was not found'.format(last_layer_to_freeze))
             # model.extractor = freeze_layers(model=model.extractor, last_layer_to_freeze=last_layer_to_freeze)
+    elif model_type == 'classifier':
+        model = get_classifier(classifier_name=backbone_type)
+        last_layer_to_freeze = configuration_data.get('last_layer_to_freeze', 'layer4')
+        if transfer_learning:
+            model = freeze_layers(model=model, last_layer_to_freeze=last_layer_to_freeze)
     else:
         raise ValueError('Only "maskrcnn" and "ssd" are supported as model type')
     return model
