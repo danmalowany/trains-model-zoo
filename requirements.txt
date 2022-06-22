@@ -1,6 +1,6 @@
 trains == 0.15.1
 furl == 2.1.0
-numpy == 1.18.4
+numpy == 1.22.0
 pathlib2 == 2.3.5
 Pillow == 7.1.2
 pytorch-ignite == 0.3.0
