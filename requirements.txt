@@ -5,7 +5,7 @@ pathlib2 == 2.3.5
 Pillow == 7.1.2
 pytorch-ignite == 0.3.0
 tensorboard == 2.2.1
-torch == 1.5.1
+torch == 1.13.1
 torchvision == 0.6.1
 scikit-learn==0.23.1
 opencv-python==4.2.0.34
