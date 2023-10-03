@@ -2,7 +2,7 @@ trains == 0.15.1
 furl == 2.1.0
 numpy == 1.18.4
 pathlib2 == 2.3.5
-Pillow == 7.1.2
+Pillow == 10.0.1
 pytorch-ignite == 0.3.0
 tensorboard == 2.2.1
 torch == 1.5.1
